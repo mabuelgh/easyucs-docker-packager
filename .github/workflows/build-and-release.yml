@@ -89,8 +89,8 @@ jobs:
         run: |
           docker build \
             --build-arg PROXY_URL="" \
-            -t easyucs:${{ env.VERSION }} \
             -t easyucs:latest \
+            -t easyucs:${{ env.VERSION }} \
             -f dockerfile .
 
       - name: Save Docker image as tar archive
@@ -128,5 +128,4 @@ jobs:
             --notes "$RELEASE_NOTES" \
             easyucs.tar \
             docker_compose.yml \
-            proxy_settings.json \
-            instructions.txt
+            proxy_settings.json

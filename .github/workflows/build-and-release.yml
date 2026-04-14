@@ -95,7 +95,7 @@ jobs:
 
       - name: Save Docker image as tar archive
         run: |
-          docker save -o easyucs.tar easyucs:${{ env.VERSION }}
+          docker save -o easyucs.tar easyucs:${{ env.VERSION }} easyucs:latest
           du -sh easyucs.tar
 
       - name: Create GitHub Release with all deployment assets

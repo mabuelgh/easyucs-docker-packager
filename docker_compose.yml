@@ -1,0 +1,12 @@
+name: easyucs
+services:
+    easyucs:
+        image: easyucs:latest
+        container_name: easyucs
+        network_mode: bridge
+        ports:
+            - 5001:5001
+        volumes:
+            - ./data:/app/easyucs/data
+            - ./proxy_settings.json:/app/easyucs/proxy_settings.json
+        restart: unless-stopped

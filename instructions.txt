@@ -1,0 +1,17 @@
+Online Machine:
+
+sudo docker build -t easyucs:latest .
+sudo docker save -o easyucs.tar easyucs:latest
+
+
+Offline Machine:
+
+ubuntu@llm2:~/easyucs-docker$ ls
+docker_compose.yml  dockerfile  easyucs.tar  proxy_settings.json
+
+sudo docker load -i easyucs.tar
+sudo docker compose -f docker_compose.yml up -d
+
+if issues with DNS:
+        dns:
+            - 171.70.168.183  # Example Cisco DNS

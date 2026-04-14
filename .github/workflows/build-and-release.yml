@@ -1,0 +1,132 @@
+name: Build & Release EasyUCS Docker Image
+
+on:
+  schedule:
+    # Runs every day at 02:00 UTC — checks if upstream EasyUCS has new commits
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force build even if no upstream changes detected'
+        type: boolean
+        default: false
+
+jobs:
+  # ── Job 1: Check if upstream EasyUCS has a new version ────────────────────
+  check-upstream:
+    runs-on: ubuntu-latest
+    outputs:
+      needs_build:  ${{ steps.check.outputs.needs_build }}
+      upstream_sha: ${{ steps.upstream.outputs.sha }}
+      version:      ${{ steps.upstream.outputs.version }}
+
+    steps:
+      - name: Get latest EasyUCS commit SHA and version
+        id: upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Fetch latest commit SHA
+          SHA=$(curl -sf \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/vesposito/easyucs/commits/HEAD" \
+            | jq -r '.sha')
+          if [[ -z "$SHA" || "$SHA" == "null" ]]; then
+            echo "ERROR: Could not fetch upstream SHA" >&2
+            exit 1
+          fi
+
+          # Extract __version__ from __init__.py
+          VERSION=$(curl -sf \
+            "https://raw.githubusercontent.com/vesposito/easyucs/${SHA}/__init__.py" \
+            | grep -oP '(?<=__version__ = ")[^"]+')
+          if [[ -z "$VERSION" ]]; then
+            echo "ERROR: Could not extract __version__ from __init__.py" >&2
+            exit 1
+          fi
+
+          echo "sha=$SHA"         >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Upstream EasyUCS — version: $VERSION | SHA: ${SHA:0:8}"
+
+      - name: Check if release v{version} already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION:  ${{ steps.upstream.outputs.version }}
+          FORCE:    ${{ inputs.force_build }}
+        run: |
+          EXISTS=$(gh release view "v${VERSION}" \
+            --repo "${{ github.repository }}" \
+            --json tagName -q '.tagName' 2>/dev/null || echo "")
+
+          if [[ "$FORCE" == "true" || -z "$EXISTS" ]]; then
+            echo "needs_build=true" >> "$GITHUB_OUTPUT"
+            echo "Build needed — v${VERSION} does not exist yet (or force=true)"
+          else
+            echo "needs_build=false" >> "$GITHUB_OUTPUT"
+            echo "Release v${VERSION} already published — nothing to do."
+          fi
+
+  # ── Job 2: Build the Docker image and publish a release ───────────────────
+  build-and-release:
+    needs: check-upstream
+    if: needs.check-upstream.outputs.needs_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # Required to create releases
+
+    env:
+      VERSION:      ${{ needs.check-upstream.outputs.version }}
+      UPSTREAM_SHA: ${{ needs.check-upstream.outputs.upstream_sha }}
+
+    steps:
+      - name: Checkout easyucs-docker repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image tagged with upstream version
+        run: |
+          docker build \
+            --build-arg PROXY_URL="" \
+            -t easyucs:${{ env.VERSION }} \
+            -t easyucs:latest \
+            -f dockerfile .
+
+      - name: Save Docker image as tar archive
+        run: |
+          docker save -o easyucs.tar easyucs:${{ env.VERSION }}
+          du -sh easyucs.tar
+
+      - name: Create GitHub Release with all deployment assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_NOTES=$(cat <<EOF
+          Automated EasyUCS Docker offline image build.
+
+          **EasyUCS version:** \`${{ env.VERSION }}\`
+          **Upstream commit:** [\`${UPSTREAM_SHA:0:8}\`](https://github.com/vesposito/easyucs/commit/${UPSTREAM_SHA})
+          **Built:** $(date -u +'%Y-%m-%d %H:%M UTC')
+
+          ## Usage on offline machine
+
+          1. Download \`easyucs.tar\`, \`docker_compose.yml\`, and \`proxy_settings.json\` from this release.
+          2. Transfer the files to the offline machine, then run:
+
+          \`\`\`bash
+          docker load -i easyucs.tar
+          docker compose -f docker_compose.yml up -d
+          \`\`\`
+
+          > **Proxy users:** edit \`proxy_settings.json\` before starting the container.
+          EOF
+          )
+
+          gh release create "v${{ env.VERSION }}" \
+            --title "EasyUCS Docker v${{ env.VERSION }}" \
+            --notes "$RELEASE_NOTES" \
+            easyucs.tar \
+            docker_compose.yml \
+            proxy_settings.json \
+            instructions.txt

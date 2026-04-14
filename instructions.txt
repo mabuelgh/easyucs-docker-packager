@@ -1,7 +1,20 @@
-Online Machine:
+Online Machine (with proxy):
+
+sudo docker build --build-arg PROXY_URL=http://proxy.local.com:8080 -t easyucs:latest .
+sudo docker save -o easyucs.tar easyucs:latest
+
+Online Machine (no proxy / direct internet):
 
 sudo docker build -t easyucs:latest .
 sudo docker save -o easyucs.tar easyucs:latest
+
+Automated build via GitHub Actions:
+
+  Every day at 02:00 UTC, the workflow .github/workflows/build-and-release.yml reads
+  __version__ from the upstream EasyUCS __init__.py. If no GitHub release named v{version}
+  exists yet, it builds the Docker image tagged easyucs:{version} and publishes a new
+  release (e.g. v1.0.6) containing: easyucs.tar, docker_compose.yml, proxy_settings.json.
+  You can also trigger a manual build from the Actions tab (workflow_dispatch).
 
 
 Offline Machine:

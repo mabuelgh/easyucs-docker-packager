@@ -1,4 +1,4 @@
-# EasyUCS Docker
+# EasyUCS Docker Packager
 
 This project provides a **ready-to-deploy Docker packaging of [EasyUCS](https://github.com/vesposito/easyucs)**, designed for environments where internet access is restricted or unavailable.
 
@@ -13,7 +13,7 @@ It automates the build of EasyUCS into a portable `easyucs.tar` Docker image arc
 
 Pre-built images are automatically published as GitHub Releases whenever a new EasyUCS version is detected.
 
-1. Go to the [Releases](https://github.com/mabuelgh/easyucs-docker/releases) page and download the latest release assets:
+1. Go to the [Releases](https://github.com/mabuelgh/easyucs-docker-packager/releases) page and download the latest release assets:
    - `easyucs.tar` — the Docker image archive
    - `docker_compose.yml` — the Compose file
    - `proxy_settings.json` — proxy configuration for EasyUCS

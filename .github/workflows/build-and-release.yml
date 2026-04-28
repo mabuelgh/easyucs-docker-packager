@@ -129,3 +129,16 @@ jobs:
             easyucs.tar \
             docker_compose.yml \
             proxy_settings.json
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push image to Docker Hub
+        run: |
+          docker tag easyucs:${{ env.VERSION }} ${{ secrets.DOCKERHUB_USERNAME }}/easyucs:${{ env.VERSION }}
+          docker tag easyucs:${{ env.VERSION }} ${{ secrets.DOCKERHUB_USERNAME }}/easyucs:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/easyucs:${{ env.VERSION }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/easyucs:latest

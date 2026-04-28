@@ -4,6 +4,8 @@ This project provides a **ready-to-deploy Docker packaging of [EasyUCS](https://
 
 It automates the build of EasyUCS into a portable `easyucs.tar` Docker image archive via GitHub Actions, so you can simply transfer and load it on any offline machine.
 
+Additionally, this project is publishing the Docker release on Docker Hub.
+
 > [!NOTE]
 > EasyUCS is developed and maintained by [vesposito](https://github.com/vesposito/easyucs). This project only handles the packaging and offline distribution.
 
@@ -32,7 +34,27 @@ Pre-built images are automatically published as GitHub Releases whenever a new E
 
 ---
 
-### Option 2 — Build your own release
+### Option 2 — Use Docker Hub
+
+Pre-built images are automatically published on [Docker Hub](https://hub.docker.com/r/mabuelgh/easyucs) whenever a new EasyUCS version is detected.
+
+1. Run the following:
+
+   ```bash
+   git clone https://github.com/mabuelgh/easyucs-docker-packager.git
+   cd easyucs-docker-packager
+   sed -i "s/easyucs:latest/'mabuelgh\/easyucs:latest'/g" ./docker_compose.yml
+   docker compose -f docker_compose.yml up -d
+   ```
+
+2. EasyUCS is now accessible at `http://<machine-ip>:5001`
+
+> [!TIP]
+> Edit `proxy_settings.json` before starting the container if your environment requires a proxy for EasyUCS outbound calls.
+
+---
+
+### Option 3 — Build your own release
 
 Use this method if you want to build the image yourself, for example to embed a corporate proxy at build time.
 
@@ -55,15 +77,16 @@ sudo docker save -o easyucs.tar easyucs:latest
 
 Then transfer `easyucs.tar`, `docker_compose.yml`, and `proxy_settings.json` to the offline machine and load it as described above.
 
-#### Automated build via GitHub Actions
+---
 
-The workflow `.github/workflows/build-and-release.yml` runs every day at 02:00 UTC and:
+## Automated build via GitHub Actions
 
-1. Reads `__version__` from the upstream EasyUCS `__init__.py`
+The workflow `.github/workflows/build-and-release.yml` runs every day at 02:00 UTC:
+
+1. Reads `__version__` from the `vesposito/easyucs` repository
 2. Checks if a release named `v{version}` already exists in this repo
 3. If not, builds the Docker image and publishes a new GitHub Release with all required files
-
-You can also trigger a build manually from the **Actions** tab using the **"Run workflow"** button (with an optional *Force build* toggle to rebuild an existing version).
+4. In addition, it pushes the image to Docker Hub under `mabuelgh/easyucs:{version}` and `mabuelgh/easyucs:latest`
 
 ---
 

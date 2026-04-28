@@ -43,7 +43,7 @@ Pre-built images are automatically published on [Docker Hub](https://hub.docker.
    ```bash
    git clone https://github.com/mabuelgh/easyucs-docker-packager.git
    cd easyucs-docker-packager
-   sed -i "s/easyucs:latest/'mabuelgh\/easyucs:latest'/g" ./docker_compose.yml
+   sed -i "s/easyucs:latest/mabuelgh\/easyucs:latest/g" ./docker_compose.yml
    docker compose -f docker_compose.yml up -d
    ```
 

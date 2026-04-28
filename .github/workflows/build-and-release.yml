@@ -26,21 +26,36 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Fetch latest commit SHA
-          SHA=$(curl -sf \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/vesposito/easyucs/commits/HEAD" \
-            | jq -r '.sha')
-          if [[ -z "$SHA" || "$SHA" == "null" ]]; then
-            echo "ERROR: Could not fetch upstream SHA" >&2
+          # --- Fetch latest commit SHA with retry + visible HTTP status ---
+          for attempt in 1 2 3; do
+            HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/vesposito/easyucs/commits/HEAD")
+            HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n1)
+            BODY=$(echo "$HTTP_RESPONSE" | sed '$d')
+            echo "Attempt $attempt — HTTP status: $HTTP_CODE"
+            [[ "$HTTP_CODE" == "200" ]] && break
+            echo "Non-200 response, retrying in 5s..." >&2
+            sleep 5
+          done
+
+          if [[ "$HTTP_CODE" != "200" ]]; then
+            echo "ERROR: GitHub API returned $HTTP_CODE after 3 attempts" >&2
+            echo "$BODY" >&2
             exit 1
           fi
 
-          # Extract __version__ from __init__.py
+          SHA=$(echo "$BODY" | jq -r '.sha')
+          if [[ -z "$SHA" || "$SHA" == "null" ]]; then
+            echo "ERROR: Could not parse SHA from response" >&2
+            exit 1
+          fi
+
+          # --- Extract __version__ (tolerant of quote style / spacing) ---
           VERSION=$(curl -sf \
             "https://raw.githubusercontent.com/vesposito/easyucs/${SHA}/__init__.py" \
-            | grep -oP '(?<=__version__ = ")[^"]+')
+            | grep -oP "__version__\s*=\s*['\"]\K[^'\"]+")
           if [[ -z "$VERSION" ]]; then
             echo "ERROR: Could not extract __version__ from __init__.py" >&2
             exit 1
